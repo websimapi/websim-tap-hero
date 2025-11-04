@@ -1,7 +1,7 @@
 import Renderer from './renderer.js';
 import InputHandler from './input.js';
 import AudioManager from './audio.js';
-import { generateSong } from './song.js';
+import { loadSong } from './song.js';
 
 const NOTE_TIMING = {
     PERFECT: 0.05, // +/- 50ms window
@@ -43,18 +43,26 @@ class Game {
         this.renderer.resize(this.canvas.width, this.canvas.height);
     }
 
-    start() {
+    async start() {
         this.gameState = 'LOADING';
         this.renderer.setLoading(true);
-        this.audio.loadSounds().then(() => {
-            this.notes = generateSong();
+        try {
+            const [_, songNotes] = await Promise.all([
+                this.audio.loadSounds(),
+                loadSong()
+            ]);
+            
+            this.notes = songNotes;
             this.reset();
             this.gameState = 'PLAYING';
             this.renderer.setLoading(false);
             this.audio.playMusic();
             this.lastTime = performance.now();
             requestAnimationFrame(this.gameLoop.bind(this));
-        });
+        } catch (error) {
+            console.error("Failed to load game assets:", error);
+            // Handle loading error (e.g., show an error message on screen)
+        }
     }
 
     reset() {

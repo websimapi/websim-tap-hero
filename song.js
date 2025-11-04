@@ -1,45 +1,45 @@
-// This file generates a note chart for the game.
-// In a real game, this would be parsed from a MIDI or other chart file.
+import { Midi } from '@tonejs/midi';
 
-export function generateSong() {
+export async function loadSong() {
+    const midi = await Midi.fromUrl('./beethoven_fifth_op67.mid');
     const notes = [];
     let idCounter = 0;
 
-    // Song parameters
-    const bpm = 130;
-    const beatsPerSecond = bpm / 60;
-    const songDurationSeconds = 90;
-    const totalBeats = songDurationSeconds * beatsPerSecond;
+    // Merge notes from all tracks
+    midi.tracks.forEach(track => {
+        track.notes.forEach(note => {
+            notes.push({
+                id: idCounter++,
+                time: note.time,
+                column: note.midi % 4, // Simple mapping from pitch to column
+                duration: note.duration
+            });
+        });
+    });
 
-    // Simple patterns
-    const patterns = [
-        [0], [1], [2], [3], // Single notes
-        [0, 2], [1, 3],     // Simple chords
-        [0, 1], [2, 3]      // Adjacent notes
-    ];
+    // Sort all notes by time
+    notes.sort((a, b) => a.time - b.time);
 
-    let lastBeat = -1;
-    for (let beat = 4; beat < totalBeats; beat++) {
-        // Add notes on whole and half beats
-        if (beat % 0.5 === 0 && beat > lastBeat + 0.4) {
-             // Add some randomness to note placement
-            if (Math.random() < 0.6) {
-                const pattern = patterns[Math.floor(Math.random() * patterns.length)];
-                for (const column of pattern) {
-                    notes.push({
-                        id: idCounter++,
-                        time: beat / beatsPerSecond,
-                        column: column,
-                        duration: 0.1 // Not used yet, but good for holds later
-                    });
+    // Filter out notes that are too close to each other to be playable, but allow chords
+    const filteredNotes = [];
+    if (notes.length > 0) {
+        const timeThreshold = 0.05; // 50ms
+        let lastTime = -1;
+
+        for (let i = 0; i < notes.length; i++) {
+            const note = notes[i];
+            if (note.time - lastTime > timeThreshold) {
+                filteredNotes.push(note);
+                lastTime = note.time;
+            } else { // It's a chord with a previous note
+                // Check if this column is already used in this chord
+                const isColumnUsed = filteredNotes.some(n => n.time === note.time && n.column === note.column);
+                if (!isColumnUsed) {
+                    filteredNotes.push(note);
                 }
-                lastBeat = beat;
             }
         }
     }
 
-    // Ensure notes are sorted by time
-    notes.sort((a, b) => a.time - b.time);
-
-    return notes;
+    return filteredNotes;
 }
