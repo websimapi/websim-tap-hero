@@ -1,16 +1,10 @@
 import * as Tone from 'tone';
-import { Midi } from '@tonejs/midi';
 
 class AudioManager {
     constructor() {
         this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
         this.sounds = {};
-
-        this.synth = new Tone.PolySynth(Tone.Synth, {
-            oscillator: { type: 'fmtriangle' },
-            envelope: { attack: 0.01, decay: 0.1, sustain: 0.3, release: 1 }
-        }).toDestination();
-        this.midi = null;
+        this.player = null;
     }
 
     async loadSound(name, url) {
@@ -21,29 +15,13 @@ class AudioManager {
     }
 
     async loadAssets() {
+        this.player = new Tone.Player("./song.mp3").toDestination();
         await Promise.all([
             this.loadSound('hit', './hit.mp3'),
             this.loadSound('miss', './miss.mp3'),
+            Tone.loaded()
         ]);
-
-        this.midi = await Midi.fromUrl('./beethoven_fifth_op67.mid');
-        this.prepareMidiPlayback();
-    }
-
-    prepareMidiPlayback() {
-        if (!this.midi) return;
-        
-        this.midi.tracks.forEach(track => {
-            // Schedule all notes to be played by the synth
-            track.notes.forEach(note => {
-                this.synth.triggerAttackRelease(
-                    note.name,
-                    note.duration,
-                    note.time,
-                    note.velocity
-                );
-            });
-        });
+        this.player.sync().start(0);
     }
 
     playSound(name) {
@@ -66,8 +44,7 @@ class AudioManager {
 
     stopMusic() {
         Tone.Transport.stop();
-        // Cancel all scheduled events to prevent them from playing again on restart
-        Tone.Transport.cancel(0);
+        // This will stop the player synced to the transport
     }
 
     getCurrentTime() {
