@@ -1,9 +1,16 @@
+import * as Tone from 'tone';
+import { Midi } from '@tonejs/midi';
+
 class AudioManager {
     constructor() {
         this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
-        this.musicSource = null;
         this.sounds = {};
-        this.musicStartTime = 0;
+
+        this.synth = new Tone.PolySynth(Tone.Synth, {
+            oscillator: { type: 'fmtriangle' },
+            envelope: { attack: 0.01, decay: 0.1, sustain: 0.3, release: 1 }
+        }).toDestination();
+        this.midi = null;
     }
 
     async loadSound(name, url) {
@@ -13,12 +20,30 @@ class AudioManager {
         this.sounds[name] = audioBuffer;
     }
 
-    async loadSounds() {
+    async loadAssets() {
         await Promise.all([
-            this.loadSound('music', './song.mp3'),
             this.loadSound('hit', './hit.mp3'),
-            this.loadSound('miss', './miss.mp3')
+            this.loadSound('miss', './miss.mp3'),
         ]);
+
+        this.midi = await Midi.fromUrl('./beethoven_fifth_op67.mid');
+        this.prepareMidiPlayback();
+    }
+
+    prepareMidiPlayback() {
+        if (!this.midi) return;
+        
+        this.midi.tracks.forEach(track => {
+            // Schedule all notes to be played by the synth
+            track.notes.forEach(note => {
+                this.synth.triggerAttackRelease(
+                    note.name,
+                    note.duration,
+                    note.time,
+                    note.velocity
+                );
+            });
+        });
     }
 
     playSound(name) {
@@ -29,38 +54,24 @@ class AudioManager {
         source.start(0);
     }
 
-    playMusic() {
+    async playMusic() {
+        if (Tone.context.state !== 'running') {
+            await Tone.start();
+        }
         if (this.audioContext.state === 'suspended') {
             this.audioContext.resume();
         }
-        if(this.musicSource) {
-            this.musicSource.stop();
-        }
-        this.musicSource = this.audioContext.createBufferSource();
-        this.musicSource.buffer = this.sounds.music;
-        this.musicSource.connect(this.audioContext.destination);
-        
-        const offset = 0; // Can be used to start song from a specific time
-        this.musicSource.start(0, offset);
-        this.musicStartTime = this.audioContext.currentTime - offset;
+        Tone.Transport.start();
     }
 
     stopMusic() {
-        if (this.musicSource) {
-            try {
-                this.musicSource.stop();
-            } catch (e) {
-                // Ignore errors if source is already stopped
-            }
-            this.musicSource = null;
-        }
+        Tone.Transport.stop();
+        // Cancel all scheduled events to prevent them from playing again on restart
+        Tone.Transport.cancel(0);
     }
 
     getCurrentTime() {
-        if (!this.musicSource || this.musicStartTime === 0) {
-            return 0;
-        }
-        return this.audioContext.currentTime - this.musicStartTime;
+        return Tone.Transport.seconds;
     }
 }
 

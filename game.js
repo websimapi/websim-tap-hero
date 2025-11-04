@@ -48,7 +48,7 @@ class Game {
         this.renderer.setLoading(true);
         try {
             const [_, songNotes] = await Promise.all([
-                this.audio.loadSounds(),
+                this.audio.loadAssets(),
                 loadSong()
             ]);
             
@@ -56,7 +56,7 @@ class Game {
             this.reset();
             this.gameState = 'PLAYING';
             this.renderer.setLoading(false);
-            this.audio.playMusic();
+            await this.audio.playMusic();
             this.lastTime = performance.now();
             requestAnimationFrame(this.gameLoop.bind(this));
         } catch (error) {
