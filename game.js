@@ -46,11 +46,10 @@ class Game {
     async start() {
         this.gameState = 'LOADING';
         this.renderer.setLoading(true);
+        this.hud.classList.add('hidden');
         try {
-            const [_, songNotes] = await Promise.all([
-                this.audio.loadAssets(),
-                loadSong()
-            ]);
+            await this.audio.loadAssets();
+            const songNotes = await loadSong();
             
             this.notes = songNotes;
             this.reset();

@@ -5,6 +5,7 @@ class AudioManager {
         this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
         this.sounds = {};
         this.player = null;
+        this.isLoaded = false;
     }
 
     async loadSound(name, url) {
@@ -15,6 +16,8 @@ class AudioManager {
     }
 
     async loadAssets() {
+        if (this.isLoaded) return;
+        
         this.player = new Tone.Player("./song.mp3").toDestination();
         await Promise.all([
             this.loadSound('hit', './hit.mp3'),
@@ -22,6 +25,7 @@ class AudioManager {
             Tone.loaded()
         ]);
         this.player.sync().start(0);
+        this.isLoaded = true;
     }
 
     playSound(name) {
@@ -33,11 +37,11 @@ class AudioManager {
     }
 
     async playMusic() {
+        if (this.audioContext.state === 'suspended') {
+            await this.audioContext.resume();
+        }
         if (Tone.context.state !== 'running') {
             await Tone.start();
-        }
-        if (this.audioContext.state === 'suspended') {
-            this.audioContext.resume();
         }
         Tone.Transport.start();
     }
