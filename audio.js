@@ -3,6 +3,7 @@ class AudioManager {
         this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
         this.musicSource = null;
         this.sounds = {};
+        this.musicStartTime = 0;
     }
 
     async loadSound(name, url) {
@@ -38,7 +39,10 @@ class AudioManager {
         this.musicSource = this.audioContext.createBufferSource();
         this.musicSource.buffer = this.sounds.music;
         this.musicSource.connect(this.audioContext.destination);
-        this.musicSource.start(0);
+        
+        const offset = 0; // Can be used to start song from a specific time
+        this.musicSource.start(0, offset);
+        this.musicStartTime = this.audioContext.currentTime - offset;
     }
 
     stopMusic() {
@@ -53,9 +57,11 @@ class AudioManager {
     }
 
     getCurrentTime() {
-        return this.audioContext.currentTime;
+        if (!this.musicSource || this.musicStartTime === 0) {
+            return 0;
+        }
+        return this.audioContext.currentTime - this.musicStartTime;
     }
 }
 
 export default AudioManager;
-
